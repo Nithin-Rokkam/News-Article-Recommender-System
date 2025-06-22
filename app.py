@@ -19,13 +19,67 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-# Global variables to store the model and data
+# Global variables for model and data
 data: Optional[pd.DataFrame] = None
 tfidv: Optional[TfidfVectorizer] = None
 nmf: Optional[NMF] = None
 topics: Optional[np.ndarray] = None
 cosine_sim: Optional[np.ndarray] = None
 indices: Optional[pd.Series] = None
+
+def extract_category(keywords: str) -> str:
+    """Extract category from keywords"""
+    if pd.isna(keywords):
+        return 'General'
+    
+    keywords_lower = keywords.lower()
+    
+    # Define category keywords
+    categories = {
+        'Technology': ['tech', 'software', 'app', 'startup', 'ai', 'machine learning', 'digital', 'innovation'],
+        'Business': ['business', 'company', 'market', 'investment', 'finance', 'economy', 'startup'],
+        'Politics': ['politics', 'government', 'election', 'policy', 'democrat', 'republican', 'congress'],
+        'Health': ['health', 'medical', 'covid', 'vaccine', 'hospital', 'doctor', 'treatment'],
+        'Science': ['science', 'research', 'study', 'discovery', 'scientific', 'experiment'],
+        'Entertainment': ['movie', 'film', 'celebrity', 'hollywood', 'music', 'entertainment', 'show'],
+        'Sports': ['sports', 'football', 'basketball', 'baseball', 'soccer', 'athlete', 'game'],
+        'Education': ['education', 'school', 'university', 'student', 'learning', 'academic']
+    }
+    
+    for category, keywords_list in categories.items():
+        if any(keyword in keywords_lower for keyword in keywords_list):
+            return category
+    
+    return 'General'
+
+def analyze_sentiment(text: str) -> str:
+    """Simple sentiment analysis based on keywords"""
+    if pd.isna(text):
+        return 'neutral'
+    
+    text_lower = text.lower()
+    
+    positive_words = ['good', 'great', 'excellent', 'amazing', 'wonderful', 'positive', 'success', 'win']
+    negative_words = ['bad', 'terrible', 'awful', 'negative', 'fail', 'loss', 'problem', 'crisis']
+    
+    positive_count = sum(1 for word in positive_words if word in text_lower)
+    negative_count = sum(1 for word in negative_words if word in text_lower)
+    
+    if positive_count > negative_count:
+        return 'positive'
+    elif negative_count > positive_count:
+        return 'negative'
+    else:
+        return 'neutral'
+
+def estimate_reading_time(text: str) -> int:
+    """Estimate reading time in minutes"""
+    if pd.isna(text):
+        return 1
+    
+    # Average reading speed: 200 words per minute
+    word_count = len(text.split())
+    return max(1, round(word_count / 200))
 
 def load_model():
     """Load the trained model and data"""
@@ -101,60 +155,6 @@ logger.info("Initializing model loading...")
 model_loaded = load_model()
 if not model_loaded:
     logger.error("Failed to load model during initialization")
-
-def extract_category(keywords: str) -> str:
-    """Extract category from keywords"""
-    if pd.isna(keywords):
-        return 'General'
-    
-    keywords_lower = keywords.lower()
-    
-    # Define category keywords
-    categories = {
-        'Technology': ['tech', 'software', 'app', 'startup', 'ai', 'machine learning', 'digital', 'innovation'],
-        'Business': ['business', 'company', 'market', 'investment', 'finance', 'economy', 'startup'],
-        'Politics': ['politics', 'government', 'election', 'policy', 'democrat', 'republican', 'congress'],
-        'Health': ['health', 'medical', 'covid', 'vaccine', 'hospital', 'doctor', 'treatment'],
-        'Science': ['science', 'research', 'study', 'discovery', 'scientific', 'experiment'],
-        'Entertainment': ['movie', 'film', 'celebrity', 'hollywood', 'music', 'entertainment', 'show'],
-        'Sports': ['sports', 'football', 'basketball', 'baseball', 'soccer', 'athlete', 'game'],
-        'Education': ['education', 'school', 'university', 'student', 'learning', 'academic']
-    }
-    
-    for category, keywords_list in categories.items():
-        if any(keyword in keywords_lower for keyword in keywords_list):
-            return category
-    
-    return 'General'
-
-def analyze_sentiment(text: str) -> str:
-    """Simple sentiment analysis based on keywords"""
-    if pd.isna(text):
-        return 'neutral'
-    
-    text_lower = text.lower()
-    
-    positive_words = ['good', 'great', 'excellent', 'amazing', 'wonderful', 'positive', 'success', 'win']
-    negative_words = ['bad', 'terrible', 'awful', 'negative', 'fail', 'loss', 'problem', 'crisis']
-    
-    positive_count = sum(1 for word in positive_words if word in text_lower)
-    negative_count = sum(1 for word in negative_words if word in text_lower)
-    
-    if positive_count > negative_count:
-        return 'positive'
-    elif negative_count > positive_count:
-        return 'negative'
-    else:
-        return 'neutral'
-
-def estimate_reading_time(text: str) -> int:
-    """Estimate reading time in minutes"""
-    if pd.isna(text):
-        return 1
-    
-    # Average reading speed: 200 words per minute
-    word_count = len(text.split())
-    return max(1, round(word_count / 200))
 
 def get_recommendations(title: str, num_recommendations: int = 5, category_filter: str = None, 
                        sentiment_filter: str = None, min_similarity: float = 0.0) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
