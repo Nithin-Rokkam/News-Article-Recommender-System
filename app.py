@@ -127,12 +127,18 @@ def load_model():
         
         # TF-IDF Vectorization
         logger.info("Performing TF-IDF vectorization...")
-        tfidv = TfidfVectorizer(strip_accents='ascii', stop_words='english')
+        tfidv = TfidfVectorizer(
+            strip_accents='ascii', 
+            stop_words='english',
+            max_features=5000,  # Limit features to reduce memory
+            min_df=2,           # Minimum document frequency
+            max_df=0.95         # Maximum document frequency
+        )
         tfidfv_matrix = tfidv.fit_transform(data['soup'])
         
-        # NMF for topic modeling
+        # NMF for topic modeling (reduced components for memory efficiency)
         logger.info("Performing NMF topic modeling...")
-        nmf = NMF(n_components=20)
+        nmf = NMF(n_components=10, random_state=42)  # Reduced from 20 to 10
         topics = nmf.fit_transform(tfidfv_matrix)
         
         # Calculate cosine similarity
