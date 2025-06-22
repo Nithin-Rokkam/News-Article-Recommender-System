@@ -17,7 +17,11 @@ warnings.filterwarnings('ignore')
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
+# Correctly configure paths for Vercel
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+template_dir = os.path.join(project_root, 'templates')
+static_dir = os.path.join(project_root, 'static')
+app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
 
 # Global variables for model and data
 data: Optional[pd.DataFrame] = None
