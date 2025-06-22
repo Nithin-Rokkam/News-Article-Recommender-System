@@ -9,6 +9,13 @@ import os
 from typing import Optional, List, Dict, Any, Tuple
 import re
 from datetime import datetime
+import logging
+import warnings
+warnings.filterwarnings('ignore')
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
@@ -24,45 +31,76 @@ def load_model():
     """Load the trained model and data"""
     global data, tfidv, nmf, topics, cosine_sim, indices
     
-    # Load the dataset
-    data = pd.read_csv('Dataset/result_final.csv')
-    
-    # Data cleaning (same as in notebook)
-    data.dropna(how='any', subset=['title_summary'], inplace=True)
-    data.drop_duplicates(subset=['title'], keep='first', inplace=True)
-    data.drop_duplicates(subset=['summary'], keep='first', inplace=True)
-    data.drop_duplicates(subset=['text'], keep='first', inplace=True)
-    data.drop(labels=['Unnamed: 0', 'Unnamed: 0.1', 'title_summary'], axis=1, inplace=True)
-    
-    # Add categories based on keywords and content
-    data['category'] = data['keywords'].apply(extract_category)
-    
-    # Add sentiment analysis (simple keyword-based)
-    data['sentiment'] = data['text'].apply(analyze_sentiment)
-    
-    # Add reading time estimation
-    data['reading_time'] = data['text'].apply(estimate_reading_time)
-    
-    # Create soup for TF-IDF
-    def create_soup(x):
-        return x['title'] + ' ' + x['keywords'] + ' ' + x['summary'] + ' ' + x['text']
-    data['soup'] = data.apply(create_soup, axis=1)
-    
-    # TF-IDF Vectorization
-    tfidv = TfidfVectorizer(strip_accents='ascii', stop_words='english')
-    tfidfv_matrix = tfidv.fit_transform(data['soup'])
-    
-    # NMF for topic modeling
-    nmf = NMF(n_components=20)
-    topics = nmf.fit_transform(tfidfv_matrix)
-    
-    # Calculate cosine similarity
-    cosine_sim = linear_kernel(topics, topics)
-    
-    # Create indices mapping
-    indices = pd.Series(data.index, index=data['title']).drop_duplicates()
-    
-    print("Model loaded successfully!")
+    try:
+        logger.info("Starting model loading...")
+        
+        # Check if dataset file exists
+        dataset_path = 'Dataset/result_final.csv'
+        if not os.path.exists(dataset_path):
+            logger.error(f"Dataset file not found at {dataset_path}")
+            return False
+        
+        # Load the dataset
+        logger.info("Loading dataset...")
+        data = pd.read_csv(dataset_path)
+        logger.info(f"Dataset loaded with {len(data)} rows")
+        
+        # Data cleaning (same as in notebook)
+        logger.info("Cleaning data...")
+        data.dropna(how='any', subset=['title_summary'], inplace=True)
+        data.drop_duplicates(subset=['title'], keep='first', inplace=True)
+        data.drop_duplicates(subset=['summary'], keep='first', inplace=True)
+        data.drop_duplicates(subset=['text'], keep='first', inplace=True)
+        data.drop(labels=['Unnamed: 0', 'Unnamed: 0.1', 'title_summary'], axis=1, inplace=True)
+        
+        # Add categories based on keywords and content
+        logger.info("Adding categories...")
+        data['category'] = data['keywords'].apply(extract_category)
+        
+        # Add sentiment analysis (simple keyword-based)
+        logger.info("Adding sentiment analysis...")
+        data['sentiment'] = data['text'].apply(analyze_sentiment)
+        
+        # Add reading time estimation
+        logger.info("Adding reading time estimation...")
+        data['reading_time'] = data['text'].apply(estimate_reading_time)
+        
+        # Create soup for TF-IDF
+        logger.info("Creating text soup...")
+        def create_soup(x):
+            return x['title'] + ' ' + x['keywords'] + ' ' + x['summary'] + ' ' + x['text']
+        data['soup'] = data.apply(create_soup, axis=1)
+        
+        # TF-IDF Vectorization
+        logger.info("Performing TF-IDF vectorization...")
+        tfidv = TfidfVectorizer(strip_accents='ascii', stop_words='english')
+        tfidfv_matrix = tfidv.fit_transform(data['soup'])
+        
+        # NMF for topic modeling
+        logger.info("Performing NMF topic modeling...")
+        nmf = NMF(n_components=20)
+        topics = nmf.fit_transform(tfidfv_matrix)
+        
+        # Calculate cosine similarity
+        logger.info("Calculating cosine similarity...")
+        cosine_sim = linear_kernel(topics, topics)
+        
+        # Create indices mapping
+        logger.info("Creating indices mapping...")
+        indices = pd.Series(data.index, index=data['title']).drop_duplicates()
+        
+        logger.info("Model loaded successfully!")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error loading model: {str(e)}")
+        return False
+
+# Load model when module is imported (works for both direct run and Gunicorn)
+logger.info("Initializing model loading...")
+model_loaded = load_model()
+if not model_loaded:
+    logger.error("Failed to load model during initialization")
 
 def extract_category(keywords: str) -> str:
     """Extract category from keywords"""
@@ -332,8 +370,39 @@ def get_trending():
     
     return jsonify({'articles': results})
 
+@app.route('/health')
+def health_check():
+    """Health check endpoint for Render"""
+    try:
+        if data is None or indices is None or cosine_sim is None:
+            return jsonify({
+                'status': 'unhealthy',
+                'message': 'Model not loaded',
+                'data_loaded': data is not None,
+                'indices_loaded': indices is not None,
+                'cosine_sim_loaded': cosine_sim is not None
+            }), 503
+        
+        return jsonify({
+            'status': 'healthy',
+            'message': 'Model loaded successfully',
+            'total_articles': len(data) if data is not None else 0,
+            'model_components': {
+                'data': data is not None,
+                'tfidv': tfidv is not None,
+                'nmf': nmf is not None,
+                'topics': topics is not None,
+                'cosine_sim': cosine_sim is not None,
+                'indices': indices is not None
+            }
+        }), 200
+    except Exception as e:
+        logger.error(f"Health check failed: {str(e)}")
+        return jsonify({
+            'status': 'unhealthy',
+            'message': f'Health check failed: {str(e)}'
+        }), 500
+
 if __name__ == '__main__':
-    print("Loading model...")
-    load_model()
     print("Starting Flask app...")
     app.run(debug=True, host='0.0.0.0', port=5000) 
