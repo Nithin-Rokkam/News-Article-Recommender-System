@@ -26,14 +26,16 @@ coverage.xml
 
 # Virtual environments
 venv/
-env/
 ENV/
+env/
+.venv/
 
-# IDE
+# IDEs
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
 
 # OS
 .DS_Store
@@ -46,20 +48,13 @@ Thumbs.db
 
 # Documentation
 README.md
-README_FRONTEND.md
-*.pdf
+*.md
+Report/
 
-# Jupyter notebooks (keep only the data processing ones)
-*.ipynb
+# Jupyter notebooks (keep only the model file)
+Model/*.ipynb
+!Model/News_Article_recommender-system.ipynb
 
-# Model files (if any)
-*.pkl
-*.joblib
-
-# Logs
-*.log
-logs/
-
-# Temporary files
-*.tmp
-*.temp 
+# Large files that shouldn't be in the image
+*.csv
+!Dataset/result_final.csv 
