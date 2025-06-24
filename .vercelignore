@@ -1,0 +1,41 @@
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+README.md
+*.md
+Report/
+
+# Jupyter notebooks (keep only the model file)
+Model/*.ipynb
+!Model/News_Article_recommender-system.ipynb
+
+# Test files
+test_app.py
+
+# Docker files (not needed for Vercel)
+Dockerfile
+docker-compose.yml
+.dockerignore 
