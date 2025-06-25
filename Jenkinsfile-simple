@@ -1,12 +1,12 @@
 pipeline {
     agent any
-    
+
     environment {
         DOCKER_IMAGE = 'news-recommender'
         CONTAINER_NAME = 'news-app'
         PORT = '5000'
     }
-    
+
     stages {
         stage('Checkout') {
             steps {
@@ -14,84 +14,81 @@ pipeline {
                 checkout scm
             }
         }
-        
+
         stage('Build Docker Image') {
             steps {
                 echo 'Building Docker image...'
-                sh 'docker build -t ${DOCKER_IMAGE} .'
+                sh 'docker build -t $DOCKER_IMAGE .'
             }
         }
-        
+
         stage('Deploy') {
             steps {
                 echo 'Deploying application...'
                 sh '''
-                    # Stop and remove existing container
-                    docker stop ${CONTAINER_NAME} || echo "Container not running"
-                    docker rm ${CONTAINER_NAME} || echo "Container not found"
-                    
-                    # Run new container
+                    docker stop $CONTAINER_NAME || true
+                    docker rm $CONTAINER_NAME || true
+
                     docker run -d \
-                        --name ${CONTAINER_NAME} \
-                        -p ${PORT}:${PORT} \
-                        -v ${WORKSPACE}/Dataset:/app/Dataset \
-                        ${DOCKER_IMAGE}
+                        --name $CONTAINER_NAME \
+                        -p $PORT:$PORT \
+                        -v "$WORKSPACE/Dataset":/app/Dataset \
+                        $DOCKER_IMAGE
                 '''
             }
         }
-        
+
         stage('Health Check') {
             steps {
                 echo 'Checking application health...'
                 sh '''
                     echo "Waiting for application to start..."
-                    sleep 60
-                    
-                    # Check if container is running
-                    docker ps | grep ${CONTAINER_NAME}
-                    
-                    # Test health endpoint
-                    curl -f http://localhost:${PORT}/api/health || echo "Health check failed"
+                    sleep 10
+
+                    docker ps | grep $CONTAINER_NAME
+
+                    # Try hitting root or health endpoint
+                    curl -f http://localhost:$PORT || echo "Health check failed"
                 '''
             }
         }
-        
+
+        stage('Install Dependencies (Host)') {
+            steps {
+                echo 'Installing Python dependencies (on Jenkins host)...'
+                sh '''
+                    python3 -m pip install --upgrade pip
+                    pip3 install -r requirements.txt
+                '''
+            }
+        }
+
         stage('Test Docker') {
             steps {
                 sh 'docker --version'
                 sh 'docker ps'
             }
         }
-        
-        stage('Install Dependencies') {
-            steps {
-                echo 'Installing Python dependencies...'
-                sh '''
-                    python -m pip install --upgrade pip
-                    pip install -r requirements.txt
-                '''
-            }
-        }
     }
-    
+
     post {
         success {
             echo 'Pipeline succeeded! 🎉'
             sh '''
                 echo "=== DEPLOYMENT SUCCESSFUL ==="
-                echo "Application URL: http://localhost:${PORT}"
-                echo "Container Name: ${CONTAINER_NAME}"
-                echo "================================"
+                echo "Application URL: http://localhost:$PORT"
+                echo "Container Name: $CONTAINER_NAME"
+                echo "=============================="
             '''
         }
-        
+
         failure {
             echo 'Pipeline failed! ❌'
             sh '''
                 echo "=== DEPLOYMENT FAILED ==="
-                docker logs ${CONTAINER_NAME} || echo "No container logs available"
+                docker logs $CONTAINER_NAME || echo "No container logs available"
                 echo "=========================="
             '''
         }
     }
-} 
+}
