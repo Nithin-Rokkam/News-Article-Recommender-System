@@ -11,104 +11,102 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                echo 'Checking out source code...'
+                echo '✅ Checking out source code...'
                 checkout scm
+            }
+        }
+
+        stage('Check Python Setup') {
+            steps {
+                echo '🔍 Checking Python installation...'
+                bat 'where python'
+                bat 'python --version'
             }
         }
 
         stage('Install Dependencies') {
             steps {
-                echo 'Installing Python dependencies...'
-                bat '''
-                    python -m pip install --upgrade pip
-                    pip install -r requirements.txt
-                '''
+                echo '📦 Installing Python dependencies...'
+                bat 'python -m pip install --upgrade pip'
+                bat 'pip install -r requirements.txt'
             }
         }
 
-        stage('Run Tests') {
+        stage('Run Unit Tests') {
             steps {
-                echo 'Running tests...'
-                bat '''
-                    python -m pytest test_app.py -v || echo No tests found or tests failed
-                '''
+                echo '🧪 Running tests...'
+                bat 'python -m pytest test_app.py -v || echo No tests found or tests failed'
             }
         }
 
         stage('Code Quality Check') {
             steps {
-                echo 'Running code quality checks...'
-                bat '''
-                    flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics || echo Flake8 skipped
-                    pylint app.py || echo Pylint skipped
-                '''
+                echo '🧹 Running code quality checks...'
+                bat 'flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics || echo Flake8 skipped'
+                bat 'pylint app.py || echo Pylint skipped'
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                echo 'Building Docker image...'
-                bat '''
-                    docker build -t %DOCKER_IMAGE%:%DOCKER_TAG% .
-                    docker images
-                '''
+                echo '🐳 Building Docker image...'
+                bat "docker build -t %DOCKER_IMAGE%:%DOCKER_TAG% ."
+                bat "docker images"
             }
         }
 
-        stage('Security Scan') {
+        stage('Security Scan (Trivy)') {
             steps {
-                echo 'Running security scan...'
+                echo '🔒 Running security scan...'
                 bat '''
-                    docker run --rm -v //var/run/docker.sock:/var/run/docker.sock -v %WORKSPACE%:/tmp/result aquasec/trivy image %DOCKER_IMAGE%:%DOCKER_TAG% || echo Trivy scan skipped
+                    docker run --rm -v //var/run/docker.sock:/var/run/docker.sock ^
+                    -v %WORKSPACE%:/tmp/result aquasec/trivy image %DOCKER_IMAGE%:%DOCKER_TAG% ^
+                    || echo Trivy not available, skipping scan
                 '''
             }
         }
 
         stage('Stop Previous Container') {
             steps {
-                echo 'Stopping previous container if running...'
-                bat '''
-                    docker stop %CONTAINER_NAME% || echo Container not running
-                    docker rm %CONTAINER_NAME% || echo Container not found
-                '''
+                echo '🛑 Stopping previous container if running...'
+                bat 'docker stop %CONTAINER_NAME% || echo Container not running'
+                bat 'docker rm %CONTAINER_NAME% || echo Container not found'
             }
         }
 
         stage('Deploy Application') {
             steps {
-                echo 'Deploying application...'
+                echo '🚀 Deploying application...'
                 bat '''
                     docker run -d ^
-                        --name %CONTAINER_NAME% ^
-                        -p %PORT%:%PORT% ^
-                        -v "%WORKSPACE%\\Dataset":/app/Dataset ^
-                        -v "%WORKSPACE%\\templates":/app/templates ^
-                        --restart unless-stopped ^
-                        %DOCKER_IMAGE%:%DOCKER_TAG%
+                    --name %CONTAINER_NAME% ^
+                    -p %PORT%:%PORT% ^
+                    -v "%WORKSPACE%\\Dataset":/app/Dataset ^
+                    -v "%WORKSPACE%\\templates":/app/templates ^
+                    --restart unless-stopped ^
+                    %DOCKER_IMAGE%:%DOCKER_TAG%
                 '''
             }
         }
 
         stage('Health Check') {
             steps {
-                echo 'Performing health check...'
+                echo '💓 Performing health check...'
                 bat '''
-                    echo Waiting for app to start...
                     timeout /t 30 >nul
-
                     docker ps | findstr %CONTAINER_NAME%
-                    curl http://localhost:%PORT% || echo App not responding
+                    curl http://localhost:%PORT% || echo Health check failed
                 '''
             }
         }
 
-        stage('Integration Test') {
+        stage('Integration Tests') {
             steps {
-                echo 'Running integration tests...'
+                echo '🔗 Running integration tests...'
                 bat '''
-                    curl http://localhost:%PORT%/ || echo Main endpoint test failed
-                    curl http://localhost:%PORT%/api/health || echo Health check failed
-                    curl http://localhost:%PORT%/api/articles || echo Articles API test failed
+                    curl http://localhost:%PORT%/ || echo Main endpoint failed
+                    curl http://localhost:%PORT%/api/health || echo Health API failed
+                    curl http://localhost:%PORT%/api/articles || echo Articles API failed
                 '''
             }
         }
@@ -116,20 +114,20 @@ pipeline {
 
     post {
         always {
-            echo 'Pipeline completed. Cleaning up...'
+            echo '🧹 Cleaning up...'
             bat '''
-                echo Container %CONTAINER_NAME% is running for manual testing.
-                echo Access: http://localhost:%PORT%
-                echo Stop: docker stop %CONTAINER_NAME%
-                echo Logs: docker logs %CONTAINER_NAME%
+                echo Container %CONTAINER_NAME% is still running.
+                echo Access app: http://localhost:%PORT%
+                echo To stop: docker stop %CONTAINER_NAME%
+                echo To view logs: docker logs %CONTAINER_NAME%
             '''
         }
 
         success {
-            echo 'Pipeline succeeded! 🎉'
+            echo '✅ Pipeline succeeded!'
             bat '''
                 echo === DEPLOYMENT SUCCESSFUL ===
-                echo Application: http://localhost:%PORT%
+                echo App URL: http://localhost:%PORT%
                 echo Container: %CONTAINER_NAME%
                 echo Image: %DOCKER_IMAGE%:%DOCKER_TAG%
                 echo =============================
@@ -137,16 +135,16 @@ pipeline {
         }
 
         failure {
-            echo 'Pipeline failed! ❌'
+            echo '❌ Pipeline failed.'
             bat '''
                 echo === DEPLOYMENT FAILED ===
-                docker logs %CONTAINER_NAME% || echo No logs available
+                docker logs %CONTAINER_NAME% || echo No container logs
                 echo ==========================
             '''
         }
 
         cleanup {
-            echo 'Cleaning workspace...'
+            echo '🧽 Cleaning workspace...'
             cleanWs()
         }
     }
