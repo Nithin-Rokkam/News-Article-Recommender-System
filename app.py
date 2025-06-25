@@ -25,8 +25,15 @@ def load_model():
     global data, tfidv, nmf, topics, cosine_sim, indices
     
     try:
+        # Check if dataset exists
+        dataset_path = 'Dataset/result_final.csv'
+        if not os.path.exists(dataset_path):
+            print(f"Dataset not found at {dataset_path}")
+            return False
+            
         # Load the dataset
-        data = pd.read_csv('Dataset/result_final.csv')
+        data = pd.read_csv(dataset_path)
+        print(f"Dataset loaded with {len(data)} rows")
         
         # Data cleaning
         data.dropna(how='any', subset=['title_summary'], inplace=True)
@@ -189,6 +196,13 @@ def health_check():
         'model_loaded': data is not None,
         'total_articles': len(data) if data is not None else 0
     })
+
+# Initialize model on startup
+@app.before_first_request
+def initialize_model():
+    """Initialize the model before the first request"""
+    if not load_model():
+        print("Warning: Model failed to load. Some features may not work.")
 
 if __name__ == '__main__':
     # Load the model when starting the app

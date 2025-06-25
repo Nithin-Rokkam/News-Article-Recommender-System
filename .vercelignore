@@ -1,21 +1,26 @@
-# Virtual environment
-.venv/
-venv/
-env/
-
-# Python cache
+# Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
 
-# IDE files
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# OS files
+# OS
 .DS_Store
 Thumbs.db
 
@@ -25,12 +30,7 @@ Thumbs.db
 
 # Documentation
 README.md
-*.md
 Report/
-
-# Jupyter notebooks (keep only the model file)
-Model/*.ipynb
-!Model/News_Article_recommender-system.ipynb
 
 # Test files
 test_app.py
