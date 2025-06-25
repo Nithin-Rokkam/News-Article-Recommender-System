@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  news-recommender:
+    build: .
+    container_name: news-recommender-app
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./Dataset:/app/Dataset
+      - ./templates:/app/templates
+    environment:
+      - FLASK_ENV=production
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:5000/api/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - news-network
+
+networks:
+  news-network:
+    driver: bridge

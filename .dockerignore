@@ -1,0 +1,49 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation
+README.md
+Report/
+*.md
+
+# Test files
+test_app.py
+*_test.py
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# Node.js (if any)
+node_modules/
+package.json
+package-lock.json
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore 
